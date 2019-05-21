@@ -118,15 +118,22 @@ def listarDispositivos():
 
 # Función encargada de comprobar si existe algún usuario sin contraseña
 def comprobarUsuariosSinPassword():
-    pass
-    # comando: sudo awk -F: '($2 == "") {print}' /etc/shadow
+    df = subprocess.run(['sudo awk -F: \'($2 == "") {print}\' /etc/shadow'], stdout=subprocess.PIPE)
+    if(len(df.stdout) > 0):
+        print(" - ¡Se ha encontrado un usuario sin contraseña registrado en el sistema!")
+        subprocess.run(['notify-send -u critical "Problema de seguridad" "¡Encontrado un usuario sin contraseña en el sistema!"'],
+            stdout=subprocess.PIPE)
 
 ########################################################################################
 
 # Función encargada de comprobar si el usuario root acepta login vía SSH
 def comprobarPasswordRootSsh():
-    pass
-    # comando: grep "PermitRootLogin " /etc/ssh/sshd_config 2>/dev/null | grep -v "#" | awk '{print  $2}'
+    subprocess.run(['grep "PermitRootLogin " /etc/ssh/sshd_config 2>/dev/null | grep -v "#" | awk \'{print  $2}\''],
+        stdout=subprocess.PIPE)
+    if(len(df.stdout) > 0):
+        print(" - ¡El usuario root está aceptando conexiones a través de SSH!")
+        subprocess.run(['notify-send -u critical "Problema de seguridad" "¡El usuario root acepta conexiones entrantes por SSH!"'],
+            stdout=subprocess.PIPE)
 
 ########################################################################################
 
