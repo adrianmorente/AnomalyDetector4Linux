@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+import statistics
 import subprocess
 import threading
 import psutil
@@ -6,14 +7,13 @@ import json
 import time
 
 ############################# IDEAS ###################################################
-#dict de procesos 
+# dict de procesos 
 # historico cpu, mem, io
 # historico de net
 # alerta cuando algo cambia drásticamente sin sentido notify-send "hola cara bola"
 #######################################################################################
 
-# Historial de dispositivos conectados
-
+### Historial de dispositivos conectados
 # 1. Si se quiere inicializar con lista vacía para detectar nuevos en la primera iteración
 # dispositivos_conectados = []
 
@@ -21,10 +21,13 @@ import time
 df = subprocess.run(['lsusb'], stdout=subprocess.PIPE)
 dispositivos_conectados = df.stdout.split(b"\n")
 
+### Historial de procesos
+procesos = {}
+
 #######################################################################################
 
 # Función encargada de detectar los recursos utilizados por cada proceso (memoria, CPU, etc.)
-def top():
+def listarProcesos():
     procesos = {}
     cabeceras = ["pid", "user", "pr", "ni", "virt", "res", "shr", "s" "cpu", "mem", "time"]
     top = subprocess.run(['top', '-n 1', '-b'], stdout=subprocess.PIPE)
@@ -46,15 +49,27 @@ def top():
 
 #######################################################################################
 
+# Función encargada de detectar anomalías en el uso de un recurso por parte de un proceso
+def detectarAnomalias():
+    for proc in psutil.process_iter():
+    procesos[proc.pid]["cpu"] += [proc.cpu_percent()]
+    procesos[proc.pid]["mem"] += [proc.memory_full_info().vms]
+    procesos[proc.pid]["ior"] += [proc.io_counters().read_bytes]
+    procesos[proc.pid]["iow"] += [proc.io_counters().write_bytes]
+    procesos[proc.pid]["cpu"] = procesos[proc.pid]["cpu"][-5:]
+    procesos[proc.pid]["mem"] = procesos[proc.pid]["mem"][-5:]
+    procesos[proc.pid]["ior"] = procesos[proc.pid]["ior"][-5:]
+    procesos[proc.pid]["iow"] = procesos[proc.pid]["iow"][-5:]
+
+    for key in procesos:
+        print(statistics.variance(procesos[key]["cpu"]))
+        print(statistics.variance(procesos[key]["mem"]))
+        print(statistics.variance(procesos[key]["ior"]))
+        print(statistics.variance(procesos[key]["iow"]))
+        # si alguno de esos prints es > que 40, alert  key es el pid y el nombre es procesos[key]["name"]
+
 # procesos_actuales = top()
 # print(json.dumps(procesos_actuales, sort_keys=True, indent=4))
-
-# PROCNAME = "firefox"
-# p = None
-# for proc in psutil.process_iter():
-#     if proc.name() == PROCNAME:
-#         print(proc)
-#         p = proc
 
 # p.cpu_percent()
 # p.memory_full_info()
@@ -64,7 +79,7 @@ def top():
 #######################################################################################
 
 # Función encargada de detectar cuándo se ha conectado un nuevo dispositivo USB
-def lsusb():
+def listarDispositivos():
     df = subprocess.run(['lsusb'], stdout=subprocess.PIPE)
     dispositivos_actuales = df.stdout.split(b"\n")
     
@@ -81,5 +96,5 @@ def lsusb():
 ### Ejecución del script en segundo plano
 while(True):
     print("Comprobando lista de dispositivos conectados...")
-    lsusb()
+    listarDispositivos()
     time.sleep(3)
