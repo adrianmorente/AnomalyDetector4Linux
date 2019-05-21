@@ -11,7 +11,8 @@ def top():
         campos = linea.split()
         campos = list(map(lambda x: x.decode('ascii'), campos))
         if campos[11] not in procesos:
-            procesos[campos[11]] = dict(zip(cabeceras, campos[0:10]))
+            valor = [[c] for c in campos[0:10]]
+            procesos[campos[11]] = dict(zip(cabeceras, valor))
         print(procesos)
         exit()
 
