@@ -80,21 +80,37 @@ def detectarAnomalias():
 
 # Función encargada de detectar cuándo se ha conectado un nuevo dispositivo USB
 def listarDispositivos():
+    # print("Comprobando lista de dispositivos conectados...")
     df = subprocess.run(['lsusb'], stdout=subprocess.PIPE)
     dispositivos_actuales = df.stdout.split(b"\n")
     
     global dispositivos_conectados
     if(dispositivos_actuales > dispositivos_conectados):
-        print("¡Un nuevo dispositivo ha sido conectado al sistema!")
+        print(" - ¡Un nuevo dispositivo ha sido conectado al sistema!")
     elif(dispositivos_actuales < dispositivos_conectados):
-        print("¡Un dispositivo ha sido desconectado del sistema!")
+        print(" - ¡Un dispositivo ha sido desconectado del sistema!")
 
     dispositivos_conectados = dispositivos_actuales
 
 ########################################################################################
 
+# Función encargada de comprobar si existe algún usuario sin contraseña
+def comprobarUsuariosSinPassword():
+    # comando: sudo awk -F: '($2 == "") {print}' /etc/shadow
+
+########################################################################################
+
+# Función encargada de comprobar si el usuario root acepta login vía SSH
+def comprobarPasswordRootSsh():
+    # comando: grep "PermitRootLogin " /etc/ssh/sshd_config 2>/dev/null | grep -v "#" | awk '{print  $2}'
+
+########################################################################################
+
 ### Ejecución del script en segundo plano
 while(True):
-    print("Comprobando lista de dispositivos conectados...")
+    listarProcesos()
+    detectarAnomalias()
     listarDispositivos()
+    comprobarUsuariosSinPassword()
+    comprobarPasswordRootSsh()
     time.sleep(3)
