@@ -148,4 +148,4 @@ def comprobarPasswordRootSsh():
 
 # detectarAnomalias()
 
-ubprocess.run(['notify-send', "-i important", "¡Un nuevo dispositivo ha sido desconectado al sistema!"], stdout=subprocess.PIPE)
+subprocess.run(['notify-send', "-i important", "¡Un nuevo dispositivo ha sido desconectado al sistema!"], stdout=subprocess.PIPE)
