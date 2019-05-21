@@ -1,7 +1,29 @@
 #!/usr/bin/python3
 import subprocess
+import threading
+import psutil
 import json
+import time
 
+############################# IDEAS ###################################################
+#dict de procesos 
+# historico cpu, mem, io
+# historico de net
+# alerta cuando algo cambia drásticamente sin sentido notify-send "hola cara bola"
+#######################################################################################
+
+# Historial de dispositivos conectados
+
+# 1. Si se quiere inicializar con lista vacía para detectar nuevos en la primera iteración
+# dispositivos_conectados = []
+
+# 2. Si se quiere inicializar con el estado actual de dispositivos
+df = subprocess.run(['lsusb'], stdout=subprocess.PIPE)
+dispositivos_conectados = df.stdout.split(b"\n")
+
+#######################################################################################
+
+# Función encargada de detectar los recursos utilizados por cada proceso (memoria, CPU, etc.)
 def top():
     procesos = {}
     cabeceras = ["pid", "user", "pr", "ni", "virt", "res", "shr", "s" "cpu", "mem", "time"]
@@ -22,32 +44,42 @@ def top():
             # exit()
     return procesos
 
-procesos_actuales = top()
-print(json.dumps(procesos_actuales, sort_keys=True, indent=4))
+#######################################################################################
 
-import psutil
+# procesos_actuales = top()
+# print(json.dumps(procesos_actuales, sort_keys=True, indent=4))
 
-PROCNAME = "firefox"
-p = None
-for proc in psutil.process_iter():
-    if proc.name() == PROCNAME:
-        print(proc)
-        p = proc
+# PROCNAME = "firefox"
+# p = None
+# for proc in psutil.process_iter():
+#     if proc.name() == PROCNAME:
+#         print(proc)
+#         p = proc
 
-p.cpu_percent()
-p.memory_full_info()
-p.io_counters()
-psutil.net_io_counters()
+# p.cpu_percent()
+# p.memory_full_info()
+# p.io_counters()
+# psutil.net_io_counters()
 
+#######################################################################################
 
-import subprocess
-df = subprocess.check_output("lsusb")
-df
-# split por \n
+# Función encargada de detectar cuándo se ha conectado un nuevo dispositivo USB
+def lsusb():
+    df = subprocess.run(['lsusb'], stdout=subprocess.PIPE)
+    dispositivos_actuales = df.stdout.split(b"\n")
+    
+    global dispositivos_conectados
+    if(dispositivos_actuales > dispositivos_conectados):
+        print("¡Un nuevo dispositivo ha sido conectado al sistema!")
+    elif(dispositivos_actuales < dispositivos_conectados):
+        print("¡Un dispositivo ha sido desconectado del sistema!")
 
-#dict de procesos 
-# historico cpu, mem, io
+    dispositivos_conectados = dispositivos_actuales
 
-# historico de net
+########################################################################################
 
-# alerta cuando algo cambia drásticamente sin sentido notify-send "hola cara bola"
+### Ejecución del script en segundo plano
+while(True):
+    print("Comprobando lista de dispositivos conectados...")
+    lsusb()
+    time.sleep(3)
