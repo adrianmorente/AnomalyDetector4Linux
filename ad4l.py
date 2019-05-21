@@ -76,10 +76,14 @@ def detectarAnomalias():
         procesos[proc.pid]["iow"] = procesos[proc.pid]["iow"][-5:]
 
     for key in procesos:
-        print(statistics.variance(procesos[key]["cpu"]))
-        print(statistics.variance(procesos[key]["mem"]))
-        print(statistics.variance(procesos[key]["ior"]))
-        print(statistics.variance(procesos[key]["iow"]))
+        if (statistics.variance(procesos[key]["cpu"]) > 50):
+            subprocess.run(['notify-send -i important', "El proceso " + procesos[key]["name"] + " es anómalo en CPU."], stdout=subprocess.PIPE)
+        if (statistics.variance(procesos[key]["mem"]) > 50):
+            subprocess.run(['notify-send -i important', "El proceso " + procesos[key]["name"] + " es anómalo en memoria."], stdout=subprocess.PIPE)
+        if (statistics.variance(procesos[key]["ior"]) > 50):
+            subprocess.run(['notify-send -i important', "El proceso " + procesos[key]["name"] + " es anómalo en lectura de disco."], stdout=subprocess.PIPE)
+        if (statistics.variance(procesos[key]["iow"]) > 50):
+            subprocess.run(['notify-send -i important', "El proceso " + procesos[key]["name"] + " es anómalo en escritura en disco."], stdout=subprocess.PIPE)
         # si alguno de esos prints es > que 40, alert  key es el pid y el nombre es procesos[key]["name"]
 
 #######################################################################################
@@ -103,8 +107,10 @@ def listarDispositivos():
     global dispositivos_conectados
     if(dispositivos_actuales > dispositivos_conectados):
         print(" - ¡Un nuevo dispositivo ha sido conectado al sistema!")
+        subprocess.run(['notify-send', "-i important", "¡Un nuevo dispositivo ha sido conectado al sistema!"], stdout=subprocess.PIPE)
     elif(dispositivos_actuales < dispositivos_conectados):
         print(" - ¡Un dispositivo ha sido desconectado del sistema!")
+        subprocess.run(['notify-send', "-i important", "¡Un nuevo dispositivo ha sido desconectado al sistema!"], stdout=subprocess.PIPE)
 
     dispositivos_conectados = dispositivos_actuales
 
@@ -125,10 +131,14 @@ def comprobarPasswordRootSsh():
 ########################################################################################
 
 ### Ejecución del script en segundo plano
-while(True):
-    listarProcesos()
-    detectarAnomalias()
-    listarDispositivos()
-    comprobarUsuariosSinPassword()
-    comprobarPasswordRootSsh()
-    time.sleep(3)
+# while(True):
+#     listarProcesos()
+#     detectarAnomalias()
+#     listarDispositivos()
+#     comprobarUsuariosSinPassword()
+#     comprobarPasswordRootSsh()
+#     time.sleep(3)
+
+# detectarAnomalias()
+
+ubprocess.run(['notify-send', "-i important", "¡Un nuevo dispositivo ha sido desconectado al sistema!"], stdout=subprocess.PIPE)
