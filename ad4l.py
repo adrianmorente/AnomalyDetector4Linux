@@ -23,6 +23,19 @@ dispositivos_conectados = df.stdout.split(b"\n")
 
 ### Historial de procesos
 procesos = {}
+for proc in psutil.process_iter():
+    procesos[proc.pid] = {
+    "name": proc.name(),
+    "cpu": [proc.cpu_percent()],
+    "mem": [proc.memory_full_info().vms], 
+    "ior": [proc.io_counters().read_bytes], 
+    "iow": [proc.io_counters().write_bytes]
+    }
+
+### Historial de red
+red = {}
+red["bytes_sent"] = [psutil.net_io_counters().bytes_sent]
+red["bytes_recv"] = [psutil.net_io_counters().bytes_recv]
 
 #######################################################################################
 
@@ -51,15 +64,16 @@ def listarProcesos():
 
 # Función encargada de detectar anomalías en el uso de un recurso por parte de un proceso
 def detectarAnomalias():
+    global procesos
     for proc in psutil.process_iter():
-    procesos[proc.pid]["cpu"] += [proc.cpu_percent()]
-    procesos[proc.pid]["mem"] += [proc.memory_full_info().vms]
-    procesos[proc.pid]["ior"] += [proc.io_counters().read_bytes]
-    procesos[proc.pid]["iow"] += [proc.io_counters().write_bytes]
-    procesos[proc.pid]["cpu"] = procesos[proc.pid]["cpu"][-5:]
-    procesos[proc.pid]["mem"] = procesos[proc.pid]["mem"][-5:]
-    procesos[proc.pid]["ior"] = procesos[proc.pid]["ior"][-5:]
-    procesos[proc.pid]["iow"] = procesos[proc.pid]["iow"][-5:]
+        procesos[proc.pid]["cpu"] += [proc.cpu_percent()]
+        procesos[proc.pid]["mem"] += [proc.memory_full_info().vms]
+        procesos[proc.pid]["ior"] += [proc.io_counters().read_bytes]
+        procesos[proc.pid]["iow"] += [proc.io_counters().write_bytes]
+        procesos[proc.pid]["cpu"] = procesos[proc.pid]["cpu"][-5:]
+        procesos[proc.pid]["mem"] = procesos[proc.pid]["mem"][-5:]
+        procesos[proc.pid]["ior"] = procesos[proc.pid]["ior"][-5:]
+        procesos[proc.pid]["iow"] = procesos[proc.pid]["iow"][-5:]
 
     for key in procesos:
         print(statistics.variance(procesos[key]["cpu"]))
@@ -68,13 +82,15 @@ def detectarAnomalias():
         print(statistics.variance(procesos[key]["iow"]))
         # si alguno de esos prints es > que 40, alert  key es el pid y el nombre es procesos[key]["name"]
 
-# procesos_actuales = top()
-# print(json.dumps(procesos_actuales, sort_keys=True, indent=4))
+#######################################################################################
 
-# p.cpu_percent()
-# p.memory_full_info()
-# p.io_counters()
-# psutil.net_io_counters()
+# Función encargada de detectar anomalías en el uso de la red
+def detectarRed():
+    global red
+    red["bytes_sent"] += [psutil.net_io_counters().bytes_sent]
+    red["bytes_recv"] += [psutil.net_io_counters().bytes_recv]
+    red["bytes_sent"] = red["bytes_sent"][-5:]
+    red["bytes_recv"] = red["bytes_recv"][-5:]
 
 #######################################################################################
 
@@ -96,5 +112,12 @@ def listarDispositivos():
 ### Ejecución del script en segundo plano
 while(True):
     print("Comprobando lista de dispositivos conectados...")
-    listarDispositivos()
+    listarDispositivos()    procesos[proc.pid]["cpu"] += [proc.cpu_percent()]
+        procesos[proc.pid]["mem"] += [proc.memory_full_info().vms]
+        procesos[proc.pid]["ior"] += [proc.io_counters().read_bytes]
+        procesos[proc.pid]["iow"] += [proc.io_counters().write_bytes]
+        procesos[proc.pid]["cpu"] = procesos[proc.pid]["cpu"][-5:]
+        procesos[proc.pid]["mem"] = procesos[proc.pid]["mem"][-5:]
+        procesos[proc.pid]["ior"] = procesos[proc.pid]["ior"][-5:]
+        procesos[proc.pid]["iow"] = procesos[proc.pid]["iow"][-5:]
     time.sleep(3)
