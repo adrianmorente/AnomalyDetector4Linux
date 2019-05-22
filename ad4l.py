@@ -25,11 +25,11 @@ dispositivos_conectados = df.stdout.split(b"\n")
 procesos = {}
 for proc in psutil.process_iter():
     procesos[proc.pid] = {
-    "name": proc.name(),
-    "cpu": [proc.cpu_percent()],
-    "mem": [proc.memory_full_info().vms], 
-    "ior": [proc.io_counters().read_bytes], 
-    "iow": [proc.io_counters().write_bytes]
+        "name": proc.name(),
+        "cpu": [proc.cpu_percent()],
+        "mem": [proc.memory_full_info().vms], 
+        "ior": [proc.io_counters().read_bytes], 
+        "iow": [proc.io_counters().write_bytes]
     }
 
 ### Historial de red
@@ -66,23 +66,32 @@ red["bytes_recv"] = [psutil.net_io_counters().bytes_recv]
 def detectarAnomalias():
     global procesos
     for proc in psutil.process_iter():
-        procesos[proc.pid]["cpu"] += [proc.cpu_percent()]
-        procesos[proc.pid]["mem"] += [proc.memory_full_info().vms]
-        procesos[proc.pid]["ior"] += [proc.io_counters().read_bytes]
-        procesos[proc.pid]["iow"] += [proc.io_counters().write_bytes]
-        procesos[proc.pid]["cpu"] = procesos[proc.pid]["cpu"][-5:]
-        procesos[proc.pid]["mem"] = procesos[proc.pid]["mem"][-5:]
-        procesos[proc.pid]["ior"] = procesos[proc.pid]["ior"][-5:]
-        procesos[proc.pid]["iow"] = procesos[proc.pid]["iow"][-5:]
+        if proc.pid in procesos:
+            procesos[proc.pid]["cpu"] += [proc.cpu_percent()]
+            procesos[proc.pid]["mem"] += [proc.memory_full_info().vms]
+            procesos[proc.pid]["ior"] += [proc.io_counters().read_bytes]
+            procesos[proc.pid]["iow"] += [proc.io_counters().write_bytes]
+            procesos[proc.pid]["cpu"] = procesos[proc.pid]["cpu"][-5:]
+            procesos[proc.pid]["mem"] = procesos[proc.pid]["mem"][-5:]
+            procesos[proc.pid]["ior"] = procesos[proc.pid]["ior"][-5:]
+            procesos[proc.pid]["iow"] = procesos[proc.pid]["iow"][-5:]
+        else:
+            procesos[proc.pid] = {
+                "name": proc.name(),
+                "cpu": [proc.cpu_percent()],
+                "mem": [proc.memory_full_info().vms], 
+                "ior": [proc.io_counters().read_bytes], 
+                "iow": [proc.io_counters().write_bytes]
+            }
 
     for key in procesos:
-        if (statistics.variance(procesos[key]["cpu"]) > 50):
+        if len(procesos[key]["cpu"]) == 5 and statistics.variance(procesos[key]["cpu"]) > 50:
             subprocess.run(['notify-send', '-i', 'important', "El proceso " + procesos[key]["name"] + " es anómalo en CPU."], stdout=subprocess.PIPE)
-        if (statistics.variance(procesos[key]["mem"]) > 50):
+        if len(procesos[key]["mem"]) == 5 and statistics.variance(procesos[key]["mem"]) > 50:
             subprocess.run(['notify-send', '-i', 'important', "El proceso " + procesos[key]["name"] + " es anómalo en memoria."], stdout=subprocess.PIPE)
-        if (statistics.variance(procesos[key]["ior"]) > 50):
+        if len(procesos[key]["ior"]) == 5 and statistics.variance(procesos[key]["ior"]) > 50:
             subprocess.run(['notify-send', '-i', 'important', "El proceso " + procesos[key]["name"] + " es anómalo en lectura de disco."], stdout=subprocess.PIPE)
-        if (statistics.variance(procesos[key]["iow"]) > 50):
+        if len(procesos[key]["iow"]) == 5 and statistics.variance(procesos[key]["iow"]) > 50:
             subprocess.run(['notify-send', '-i', 'important', "El proceso " + procesos[key]["name"] + " es anómalo en escritura en disco."], stdout=subprocess.PIPE)
         # si alguno de esos prints es > que 40, alert  key es el pid y el nombre es procesos[key]["name"]
 
@@ -108,7 +117,7 @@ def listarDispositivos():
     global dispositivos_conectados
     if(dispositivos_actuales > dispositivos_conectados):
         print(" - ¡Un nuevo dispositivo ha sido conectado al sistema!")
-        subprocess.run(['notify-send', '-i', 'important', "¡Un nuevo dispositivo ha sido conectado al sistema!"], stdout=subprocess.PIPE)
+        subprocess.run(['notify-send', '-i', 'important', '¡Un nuevo dispositivo ha sido conectado al sistema!'], stdout=subprocess.PIPE)
     elif(dispositivos_actuales < dispositivos_conectados):
         print(" - ¡Un dispositivo ha sido desconectado del sistema!")
         subprocess.run(['notify-send', '-i', 'important', "¡Un nuevo dispositivo ha sido desconectado al sistema!"], stdout=subprocess.PIPE)
@@ -156,21 +165,21 @@ subprocess.run(['notify-send', "-i", "important", "¡Un nuevo dispositivo ha sid
 ## las de comprobar cada 60'
 ## las otras cada 5'
 #podemos hacer un envoltorio de las funciones
-def fanomalia(f_stop):
-    detectarAnomalias()
-    detectarRed()
-    listarDispositivos()
-    if not f_stop.is_set():
-        threading.Timer(5, fanomalia, [f_stop]).start()
+# def fanomalia(f_stop):
+#     detectarAnomalias()
+#     detectarRed()
+#     listarDispositivos()
+#     if not f_stop.is_set():
+#         threading.Timer(5, fanomalia, [f_stop]).start()
 
-f_stop = threading.Event()
-fanomalia(f_stop)
+# f_stop = threading.Event()
+# fanomalia(f_stop)
 
-def fusuario(f_stop_usuario):
-    comprobarPasswordRootSsh()
-    comprobarUsuariosSinPassword()
-    if not f_stop_usuario.is_set():
-        threading.Timer(5, fusuario, [f_stop_usuario]).start()
+# def fusuario(f_stop_usuario):
+#     comprobarPasswordRootSsh()
+#     comprobarUsuariosSinPassword()
+#     if not f_stop_usuario.is_set():
+#         threading.Timer(5, fusuario, [f_stop_usuario]).start()
 
-f_stop_usuario = threading.Event()
-fusuario(f_stop_usuario)
+# f_stop_usuario = threading.Event()
+# fusuario(f_stop_usuario)
