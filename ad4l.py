@@ -5,6 +5,7 @@ import threading
 import psutil
 import json
 import time
+import os
 
 ############################# IDEAS ###################################################
 # dict de procesos 
@@ -39,26 +40,41 @@ red["bytes_recv"] = [psutil.net_io_counters().bytes_recv]
 
 #######################################################################################
 
+# Función utilizada por el resto de funciones para enviar notificaciones al usuario del sistema
+def notificar(title, message):
+    userID = subprocess.run(['id', '-u', os.environ['SUDO_USER']],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=True).stdout.decode("utf-8").replace('\n', '')
+
+    subprocess.run(['sudo', '-u', os.environ['SUDO_USER'], 'DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/{}/bus'.format(userID), 
+        'notify-send', '-i', 'important', title, message],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=True)
+
+#######################################################################################
+
 # Función encargada de detectar los recursos utilizados por cada proceso (memoria, CPU, etc.)
-# def listarProcesos():
-#     procesos = {}
-#     cabeceras = ["pid", "user", "pr", "ni", "virt", "res", "shr", "s" "cpu", "mem", "time"]
-#     top = subprocess.run(['top', '-n 1', '-b'], stdout=subprocess.PIPE)
-#     lineas = top.stdout.split(b"\n")
-#     for linea in lineas[7:]:
-#         campos = linea.split()
-#         if len(campos) == 12:
-#             campos = list(map(lambda x: x.decode('ascii'), campos))
-#             valor = [[c] for c in campos[0:10]]
-#             dicValor = dict(zip(cabeceras, valor))
-#             if campos[11] not in procesos:
-#                 procesos[campos[11]] = dicValor
-#             else:
-#                 for c in cabeceras:
-#                     procesos[campos[11]][c] = procesos[campos[11]][c] + dicValor[c]
-#             # print(procesos)
-#             # exit()
-#     return procesos
+def listarProcesos():
+    procesos = {}
+    cabeceras = ["pid", "user", "pr", "ni", "virt", "res", "shr", "s" "cpu", "mem", "time"]
+    top = subprocess.run(['top', '-n 1', '-b'], stdout=subprocess.PIPE)
+    lineas = top.stdout.split(b"\n")
+    for linea in lineas[7:]:
+        campos = linea.split()
+        if len(campos) == 12:
+            campos = list(map(lambda x: x.decode('ascii'), campos))
+            valor = [[c] for c in campos[0:10]]
+            dicValor = dict(zip(cabeceras, valor))
+            if campos[11] not in procesos:
+                procesos[campos[11]] = dicValor
+            else:
+                for c in cabeceras:
+                    procesos[campos[11]][c] = procesos[campos[11]][c] + dicValor[c]
+            # print(procesos)
+            # exit()
+    return procesos
 
 #######################################################################################
 
@@ -84,16 +100,16 @@ def detectarAnomalias():
                 "iow": [proc.io_counters().write_bytes]
             }
 
+    tituloMensaje = "¡Anomalía detectada!"
     for key in procesos:
         if len(procesos[key]["cpu"]) == 5 and statistics.variance(procesos[key]["cpu"]) > 50:
-            subprocess.run(['notify-send', '-i', 'important', "El proceso " + procesos[key]["name"] + " es anómalo en CPU."], stdout=subprocess.PIPE)
-        if len(procesos[key]["mem"]) == 5 and statistics.variance(procesos[key]["mem"]) > 50:
-            subprocess.run(['notify-send', '-i', 'important', "El proceso " + procesos[key]["name"] + " es anómalo en memoria."], stdout=subprocess.PIPE)
-        if len(procesos[key]["ior"]) == 5 and statistics.variance(procesos[key]["ior"]) > 50:
-            subprocess.run(['notify-send', '-i', 'important', "El proceso " + procesos[key]["name"] + " es anómalo en lectura de disco."], stdout=subprocess.PIPE)
-        if len(procesos[key]["iow"]) == 5 and statistics.variance(procesos[key]["iow"]) > 50:
-            subprocess.run(['notify-send', '-i', 'important', "El proceso " + procesos[key]["name"] + " es anómalo en escritura en disco."], stdout=subprocess.PIPE)
-        # si alguno de esos prints es > que 40, alert  key es el pid y el nombre es procesos[key]["name"]
+            notificar(tituloMensaje, "El proceso " + procesos[key]["name"] + " es anómalo en CPU.")
+        if len(procesos[key]["mem"]) == 5 and statistics.variance(procesos[key]["mem"]) > 500*1024*1024:
+            notificar(tituloMensaje, "El proceso " + procesos[key]["name"] + " es anómalo en memoria.")
+        if len(procesos[key]["ior"]) == 5 and statistics.variance(procesos[key]["ior"]) > 500*1024*1024:
+            notificar(tituloMensaje, "El proceso " + procesos[key]["name"] + " es anómalo en lectura de disco.")
+        if len(procesos[key]["iow"]) == 5 and statistics.variance(procesos[key]["iow"]) > 200*1024*1024:
+            notificar(tituloMensaje, "El proceso " + procesos[key]["name"] + " es anómalo en escritura de disco.")
 
 #######################################################################################
 
@@ -104,23 +120,29 @@ def detectarRed():
     red["bytes_recv"] += [psutil.net_io_counters().bytes_recv]
     red["bytes_sent"] = red["bytes_sent"][-5:]
     red["bytes_recv"] = red["bytes_recv"][-5:]
-    ### TODO: comprobar para sacar notificación
+    
+    tituloMensaje = "¡Anomalía en la red!"
+    valorMax = 50*1024*1024
+    if len(red["bytes_sent"]) == 5 and statistics.variance(red["bytes_sent"]) > valorMax:
+        notificar(tituloMensaje, "Se han enviado muchos datos a través de la red")
+    if len(red["bytes_recv"]) == 5 and statistics.variance(red["bytes_recv"]) > valorMax:
+        notificar(tituloMensaje, "Se han recibido muchos datos a través de la red")
 
 #######################################################################################
 
 # Función encargada de detectar cuándo se ha conectado un nuevo dispositivo USB
 def listarDispositivos():
-    # print("Comprobando lista de dispositivos conectados...")
     df = subprocess.run(['lsusb'], stdout=subprocess.PIPE)
     dispositivos_actuales = df.stdout.split(b"\n")
     
     global dispositivos_conectados
+    tituloMensaje = "¡Alerta de conexión de dispositivos!"
     if(dispositivos_actuales > dispositivos_conectados):
         print(" - ¡Un nuevo dispositivo ha sido conectado al sistema!")
-        subprocess.run(['notify-send', '-i', 'important', '¡Un nuevo dispositivo ha sido conectado al sistema!'], stdout=subprocess.PIPE)
+        notificar(tituloMensaje, "¡Un nuevo dispositivo ha sido conectado al sistema!")
     elif(dispositivos_actuales < dispositivos_conectados):
         print(" - ¡Un dispositivo ha sido desconectado del sistema!")
-        subprocess.run(['notify-send', '-i', 'important', "¡Un nuevo dispositivo ha sido desconectado al sistema!"], stdout=subprocess.PIPE)
+        notificar(tituloMensaje, "¡Un dispositivo ha sido desconectado del sistema!")
 
     dispositivos_conectados = dispositivos_actuales
 
@@ -131,8 +153,7 @@ def comprobarUsuariosSinPassword():
     df = subprocess.run(['sudo awk -F: \'($2 == "") {print}\' /etc/shadow'], stdout=subprocess.PIPE)
     if(len(df.stdout) > 0):
         print(" - ¡Se ha encontrado un usuario sin contraseña registrado en el sistema!")
-        subprocess.run(['notify-send', "-u", "critical", "Problema de seguridad", "¡Encontrado un usuario sin contraseña en el sistema!"],
-            stdout=subprocess.PIPE)
+        notificar("¡Problema de seguridad!", "¡Encontrado un usuario sin contraseña en el sistema!")
 
 ########################################################################################
 
@@ -142,44 +163,35 @@ def comprobarPasswordRootSsh():
         stdout=subprocess.PIPE)
     if(len(df.stdout) > 0):
         print(" - ¡El usuario root está aceptando conexiones a través de SSH!")
-        subprocess.run(['notify-send', "-u", "critical", "Problema de seguridad", "¡El usuario root acepta conexiones entrantes por SSH!"],
-            stdout=subprocess.PIPE)
+        notificar("¡Problema de seguridad!", "¡El usuario root acepta conexiones entrantes por SSH!")
 
 ########################################################################################
 
-### Ejecución del script en segundo plano
-# while(True):
-#     listarProcesos()
-#     detectarAnomalias()
-#     listarDispositivos()
-#     comprobarUsuariosSinPassword()
-#     comprobarPasswordRootSsh()
-#     time.sleep(3)
+# Ejecución de grupo de funciones de detección: cada 5 segundos
+def fanomalia(f_stop):
+    detectarAnomalias()
+    detectarRed()
+    listarDispositivos()
+    if not f_stop.is_set():
+        threading.Timer(10, fanomalia, [f_stop]).start()
 
-# detectarAnomalias()
+########################################################################################
 
-subprocess.run(['notify-send', "-i", "important", "¡Un nuevo dispositivo ha sido desconectado al sistema!"], stdout=subprocess.PIPE)
+# Ejecución de grupo de funciones de comprobación de contraseñas: cada 20 segundos
+def fusuario(f_stop_usuario):
+    comprobarPasswordRootSsh()
+    comprobarUsuariosSinPassword()
+    if not f_stop_usuario.is_set():
+        threading.Timer(20, fusuario, [f_stop_usuario]).start()
 
+########################################################################################
 
-## Ejecutar funciones
-## las de comprobar cada 60'
-## las otras cada 5'
-#podemos hacer un envoltorio de las funciones
-# def fanomalia(f_stop):
-#     detectarAnomalias()
-#     detectarRed()
-#     listarDispositivos()
-#     if not f_stop.is_set():
-#         threading.Timer(5, fanomalia, [f_stop]).start()
+### Cuerpo del main
 
-# f_stop = threading.Event()
-# fanomalia(f_stop)
+# Detección de red y dispositivos
+f_stop = threading.Event()
+fanomalia(f_stop)
 
-# def fusuario(f_stop_usuario):
-#     comprobarPasswordRootSsh()
-#     comprobarUsuariosSinPassword()
-#     if not f_stop_usuario.is_set():
-#         threading.Timer(5, fusuario, [f_stop_usuario]).start()
-
-# f_stop_usuario = threading.Event()
-# fusuario(f_stop_usuario)
+# Comprobación de contraseñas vacías
+f_stop_usuario = threading.Event()
+fusuario(f_stop_usuario)
