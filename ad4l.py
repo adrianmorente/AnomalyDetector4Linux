@@ -149,3 +149,27 @@ def comprobarPasswordRootSsh():
 # detectarAnomalias()
 
 subprocess.run(['notify-send', "-i", "important", "¡Un nuevo dispositivo ha sido desconectado al sistema!"], stdout=subprocess.PIPE)
+
+
+## Ejecutar funciones
+## las de comprobar cada 60'
+## las otras cada 5'
+#podemos hacer un envoltorio de las funciones
+def fanomalia(f_stop):
+    detectarAnomalias()
+    detectarRed()
+    listarDispositivos()
+    if not f_stop.is_set():
+        threading.Timer(5, fanomalia, [f_stop]).start()
+
+f_stop = threading.Event()
+fanomalia(f_stop)
+
+def fusuario(f_stop_usuario):
+    comprobarPasswordRootSsh()
+    comprobarUsuariosSinPassword()
+    if not f_stop_usuario.is_set():
+        threading.Timer(5, fusuario, [f_stop_usuario]).start()
+
+f_stop_usuario = threading.Event()
+fusuario(f_stop_usuario)
