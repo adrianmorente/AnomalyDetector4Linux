@@ -95,6 +95,7 @@ def detectarRed():
     red["bytes_recv"] += [psutil.net_io_counters().bytes_recv]
     red["bytes_sent"] = red["bytes_sent"][-5:]
     red["bytes_recv"] = red["bytes_recv"][-5:]
+    ### TODO: comprobar para sacar notificación
 
 #######################################################################################
 
