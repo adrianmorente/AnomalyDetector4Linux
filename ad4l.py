@@ -121,7 +121,7 @@ def comprobarUsuariosSinPassword():
     df = subprocess.run(['sudo awk -F: \'($2 == "") {print}\' /etc/shadow'], stdout=subprocess.PIPE)
     if(len(df.stdout) > 0):
         print(" - ¡Se ha encontrado un usuario sin contraseña registrado en el sistema!")
-        subprocess.run(['notify-send -u critical "Problema de seguridad" "¡Encontrado un usuario sin contraseña en el sistema!"'],
+        subprocess.run(['notify-send', "-u", "critical", "Problema de seguridad", "¡Encontrado un usuario sin contraseña en el sistema!"],
             stdout=subprocess.PIPE)
 
 ########################################################################################
@@ -132,7 +132,7 @@ def comprobarPasswordRootSsh():
         stdout=subprocess.PIPE)
     if(len(df.stdout) > 0):
         print(" - ¡El usuario root está aceptando conexiones a través de SSH!")
-        subprocess.run(['notify-send -u critical "Problema de seguridad" "¡El usuario root acepta conexiones entrantes por SSH!"'],
+        subprocess.run(['notify-send', "-u", "critical", "Problema de seguridad", "¡El usuario root acepta conexiones entrantes por SSH!"],
             stdout=subprocess.PIPE)
 
 ########################################################################################
